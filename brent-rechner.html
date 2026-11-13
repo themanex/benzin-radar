@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brent → E5 Rechner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --bg: #f7f6f3; --bg2: #ffffff; --fg: #1a1a1a; --fg2: #555550;
+    --border: #e0ddd6; --accent: #d4550a; --accent-soft: #fdf0ea;
+    --green: #2a7a3b; --green-soft: #eaf4ec;
+    --yellow: #b07a00; --yellow-soft: #fdf8e1;
+    --red: #c0392b; --red-soft: #fdecea;
+    --mono: 'DM Mono', monospace; --sans: 'DM Sans', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141412; --bg2: #1e1d1a; --fg: #f0ede8; --fg2: #9a9690;
+      --border: #2e2c28; --accent: #e8693a; --accent-soft: #2a1a10;
+      --green: #4aab5c; --green-soft: #0e2314;
+      --yellow: #d4a020; --yellow-soft: #201800;
+      --red: #e05050; --red-soft: #220e0e;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--sans); font-size: 15px; line-height: 1.5;
+    padding: 24px 16px; max-width: 480px; margin: 0 auto;
+  }
+  header { margin-bottom: 24px; border-bottom: 2px solid var(--accent); padding-bottom: 14px; }
+  header .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header .meta { font-family: var(--mono); font-size: 11px; color: var(--fg2); margin-top: 4px; }
+
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .tile { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
+  .tile .label { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg2); margin-bottom: 4px; }
+  .tile .value { font-family: var(--mono); font-size: 24px; font-weight: 500; color: var(--fg); }
+  .tile .sub { font-size: 11px; color: var(--fg2); margin-top: 3px; }
+  .tile.green { border-color: var(--green); background: var(--green-soft); }
+  .tile.green .value { color: var(--green); }
+  .tile.yellow { border-color: var(--yellow); background: var(--yellow-soft); }
+  .tile.yellow .value { color: var(--yellow); }
+  .tile.red { border-color: var(--red); background: var(--red-soft); }
+  .tile.red .value { color: var(--red); }
+
+  .info-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 20px; font-size: 13px; color: var(--fg2); line-height: 1.6; }
+  .info-box strong { color: var(--fg); }
+
+  .btn { display: block; width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; margin-bottom: 20px; }
+  .btn:hover { opacity: .9; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .status { font-family: var(--mono); font-size: 11px; color: var(--fg2); text-align: center; margin-bottom: 16px; min-height: 16px; }
+  .status.error { color: var(--red); }
+
+  .formel { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 20px; }
+  .formel .label { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg2); margin-bottom: 8px; }
+  .formel-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .formel-row:last-child { border-bottom: none; }
+  .formel-row .k { color: var(--fg2); }
+  .formel-row .v { font-family: var(--mono); color: var(--fg); }
+
+  footer { font-family: var(--mono); font-size: 11px; color: var(--fg2); border-top: 1px solid var(--border); padding-top: 12px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Live-Rechner · Alpha Vantage API</div>
+  <h1>Brent → E5 Schätzer</h1>
+  <div class="meta" id="lastUpdate">Noch nicht geladen</div>
+</header>
+
+<div class="tiles">
+  <div class="tile" id="tileBrent">
+    <div class="label">Brent Rohöl</div>
+    <div class="value" id="valBrent">—</div>
+    <div class="sub">USD/Barrel</div>
+  </div>
+  <div class="tile" id="tileE5">
+    <div class="label">E5 Schätzung DE</div>
+    <div class="value" id="valE5">—</div>
+    <div class="sub">€/Liter (Prognose)</div>
+  </div>
+</div>
+
+<div class="status" id="status">Bereit zum Laden</div>
+
+<button class="btn" id="btnLoad" onclick="loadBrent()">⟳ Brent-Preis abrufen</button>
+
+<div class="formel">
+  <div class="label">Berechnungsformel</div>
+  <div class="formel-row"><span class="k">Rohölanteil</span><span class="v" id="fRohoel">—</span></div>
+  <div class="formel-row"><span class="k">+ Raffinerie/Transport</span><span class="v">~0,25 €</span></div>
+  <div class="formel-row"><span class="k">+ Energiesteuer</span><span class="v">0,6545 €</span></div>
+  <div class="formel-row"><span class="k">+ CO₂-Abgabe</span><span class="v">~0,07 €</span></div>
+  <div class="formel-row"><span class="k">+ MwSt 19%</span><span class="v" id="fMwst">—</span></div>
+  <div class="formel-row"><span class="k">+ Tankstellenmarge</span><span class="v">~0,10 €</span></div>
+  <div class="formel-row"><span class="k">= Schätzpreis E5</span><span class="v" id="fGesamt">—</span></div>
+</div>
+
+<div class="info-box">
+  <strong>Hinweis:</strong> Dies ist eine Schätzung basierend auf dem aktuellen Brent-Preis. Raffineriemargen und Konzernaufschläge variieren täglich. Abweichung zur Realität: typisch ±5–15 Cent.
+</div>
+
+<footer>
+  Rohöldaten: Alpha Vantage (Commodity Data) · Formel: eigene Berechnung auf Basis ADAC/MTS-K Strukturdaten<br>
+  🟡 UNSICHER — Schätzung, kein offizieller Preis
+</footer>
+
+<script>
+  // ⬇️ HIER DEINEN ALPHA VANTAGE API KEY EINTRAGEN ⬇️
+  const AV_API_KEY = "BLL6IT503FR6XDJ3";
+  // ⬆️ HIER DEINEN ALPHA VANTAGE API KEY EINTRAGEN ⬆️
+
+  // Wechselkurs USD → EUR (kannst du manuell anpassen)
+  const USD_EUR = 0.925;
+
+  // Barrel → Liter: 1 Barrel = 158,987 Liter
+  const BARREL_TO_LITER = 158.987;
+
+  async function loadBrent() {
+    const btn = document.getElementById('btnLoad');
+    const status = document.getElementById('status');
+    btn.disabled = true;
+    status.textContent = 'Lade Daten von Alpha Vantage...';
+    status.className = 'status';
+
+    try {
+      const url = `https://www.alphavantage.co/query?function=BRENT&interval=daily&apikey=${AV_API_KEY}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+
+      const data = json?.data;
+      if (!data || data.length === 0) throw new Error('Keine Daten erhalten');
+
+      const latest = data[0];
+      const brentUSD = parseFloat(latest.value);
+      const period = latest.date;
+
+      berechneE5(brentUSD, period);
+
+    } catch (err) {
+      status.textContent = `Fehler: ${err.message}`;
+      status.className = 'status error';
+      btn.disabled = false;
+    }
+  }
+
+  function berechneE5(brentUSD, period) {
+    // Rohölanteil: Brent USD/Barrel → EUR/Liter
+    const rohoel_eur_liter = (brentUSD * USD_EUR) / BARREL_TO_LITER;
+
+    // Feste Kosten DE (Stand 2026)
+    const raffinerie = 0.25;
+    const energiesteuer = 0.6545;
+    const co2 = 0.07;
+    const marge = 0.10;
+
+    // Netto vor MwSt
+    const netto = rohoel_eur_liter + raffinerie + energiesteuer + co2 + marge;
+
+    // MwSt 19%
+    const mwst = netto * 0.19;
+    const gesamt = netto + mwst;
+
+    // Anzeige aktualisieren
+    document.getElementById('valBrent').textContent = `$${brentUSD.toFixed(2)}`;
+    document.getElementById('valE5').textContent = `${gesamt.toFixed(3)} €`;
+    document.getElementById('fRohoel').textContent = `${rohoel_eur_liter.toFixed(3)} €`;
+    document.getElementById('fMwst').textContent = `${mwst.toFixed(3)} €`;
+    document.getElementById('fGesamt').textContent = `${gesamt.toFixed(3)} €`;
+    document.getElementById('lastUpdate').textContent = `Daten vom ${period} · Kurs: 1 USD = ${USD_EUR} €`;
+
+    // Farbe je nach Preis
+    const tileE5 = document.getElementById('tileE5');
+    tileE5.className = 'tile ' + (gesamt < 1.95 ? 'green' : gesamt < 2.10 ? 'yellow' : 'red');
+
+    document.getElementById('status').textContent = 'Erfolgreich geladen ✓';
+    document.getElementById('btnLoad').disabled = false;
+  }
+</script>
+
+</body>
+</html>
